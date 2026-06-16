@@ -66,6 +66,37 @@ function App() {
 
   const [sortBy, setSortBy] = useState<string>('default')
 
+  // ---- 手机端交互状态 ----
+  const [showGlobalSearchPanel, setShowGlobalSearchPanel] = useState(false)
+  const [showSortPopover, setShowSortPopover] = useState(false)
+  const [showLocalSearchPanel, setShowLocalSearchPanel] = useState(false)
+  const [showStatusPopover, setShowStatusPopover] = useState(false)
+  const sortBtnRef = useRef<HTMLButtonElement | null>(null)
+  const statusBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  // ---- 搜索历史（最多10条） ----
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('search-history')
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+
+  function addSearchHistory(text: string) {
+    const t = text.trim()
+    if (!t) return
+    setSearchHistory((prev) => {
+      const next = [t, ...prev.filter((x) => x !== t)].slice(0, 10)
+      localStorage.setItem('search-history', JSON.stringify(next))
+      return next
+    })
+  }
+
+  function clearSearchHistory() {
+    setSearchHistory([])
+    localStorage.removeItem('search-history')
+  }
+
   // ---- 排序后的项目列表 ----
   const sortedProjects = useMemo(() => {
     const list = projects.map((p) => {
@@ -74,8 +105,10 @@ function App() {
       return { ...p, orderCount, income }
     })
     switch (sortBy) {
-      case 'date':
+      case 'date-asc':
         return [...list].sort((a, b) => a.date.localeCompare(b.date))
+      case 'date-desc':
+        return [...list].sort((a, b) => b.date.localeCompare(a.date))
       case 'orders-asc':
         return [...list].sort((a, b) => a.orderCount - b.orderCount)
       case 'orders-desc':
@@ -416,33 +449,21 @@ function App() {
                       className="order-card"
                       onClick={() => enterProject(projectId)}
                     >
-                      <div className="order-card-header">
+                      <div className="order-card-row">
                         <div className="order-character">{order.character}</div>
                         <div className={`status-tag status-${order.status}`}>
                           {order.status}
                         </div>
                       </div>
-                      <div className="order-info-grid">
-                        <div className="order-info-item">
-                          <span className="order-info-label">昵称</span>
-                          <span>{order.customerName}</span>
-                        </div>
-                        <div className="order-info-item">
-                          <span className="order-info-label">张数</span>
-                          <span>{order.photoCount} 张</span>
-                        </div>
-                        <div className="order-info-item">
-                          <span className="order-info-label">全款</span>
-                          <span>¥{order.price}</span>
-                        </div>
-                        <div className="order-info-item">
-                          <span className="order-info-label">定金</span>
-                          <span>¥{order.deposit}</span>
-                        </div>
-                        <div className="order-info-item" style={{ gridColumn: 'span 2' }}>
-                          <span className="order-info-label">所属项目</span>
-                          <span>{projectName}</span>
-                        </div>
+                      <div className="order-card-meta">
+                        {order.customerName && <span>👤 {order.customerName}</span>}
+                        <span>📷 {order.photoCount}张</span>
+                        <span>¥{order.price}</span>
+                        {order.deposit > 0 && <span>定 ¥{order.deposit}</span>}
+                        <span>收 ¥{order.totalIncome}</span>
+                      </div>
+                      <div className="order-card-meta" style={{ marginTop: 2 }}>
+                        <span>📂 {projectName}</span>
                       </div>
                       {order.note && (
                         <div className="order-note">{order.note}</div>
@@ -483,30 +504,48 @@ function App() {
                 </div>
               )}
 
-              {/* ---- 项目列表 ---- */}
-              <div className="section-header">
-                <div className="section-label">漫展项目</div>
-                <select
-                  className="sort-select"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <option value="default">默认排序</option>
-                  <option value="date">按时间顺序</option>
-                  <option value="orders-desc">订单降序</option>
-                  <option value="orders-asc">订单升序</option>
-                  <option value="income-desc">金额降序</option>
-                  <option value="income-asc">金额升序</option>
-                </select>
-                <div className="section-header-btns">
-                  <button className="btn primary" onClick={openNewProjectForm}>
-                    + 新建项目
-                  </button>
-                  <button className="btn secondary" onClick={handleImportClick} disabled={importing}>
-                    {importing ? '导入中...' : '📥 导入'}
-                  </button>
-                </div>
+              {/* ---- 工具栏 ---- */}
+              <div className="toolbar">
+                <button className="tool-btn" onClick={() => { setShowSortPopover(!showSortPopover); setShowGlobalSearchPanel(false) }}>
+                  ↕
+                </button>
+                <button className="tool-btn" onClick={() => { setShowGlobalSearchPanel(!showGlobalSearchPanel); setShowSortPopover(false) }}>
+                  🔍
+                </button>
+                <div className="toolbar-spacer" />
+                <button className="tool-btn" onClick={handleImportClick} disabled={importing}>
+                  📥
+                </button>
+                <button className="btn primary" onClick={openNewProjectForm}>
+                  + 新建项目
+                </button>
               </div>
+
+              {/* ---- 排序浮窗 ---- */}
+              {showSortPopover && (
+                <div className="popover">
+                  {[
+                    { v: 'default', l: '默认排序' },
+                    { v: 'date-asc', l: '时间升序' },
+                    { v: 'date-desc', l: '时间降序' },
+                    { v: 'orders-desc', l: '订单降序' },
+                    { v: 'orders-asc', l: '订单升序' },
+                    { v: 'income-desc', l: '金额降序' },
+                    { v: 'income-asc', l: '金额升序' }
+                  ].map((o) => (
+                    <div
+                      key={o.v}
+                      className={`popover-item ${sortBy === o.v ? 'popover-item-sel' : ''}`}
+                      onClick={() => { setSortBy(o.v); setShowSortPopover(false) }}
+                    >
+                      {o.l}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ---- 项目列表 ---- */}
+              <div className="section-header" style={{ marginTop: showSortPopover ? 8 : 0 }}></div>
 
               {sortedProjects.length === 0 ? (
                 <div className="empty-hint">还没有项目，点击「+ 新建项目」开始吧</div>
@@ -563,8 +602,35 @@ function App() {
             </button>
           </div>
 
-          {/* 项目内搜索筛选 */}
-          <div className="filter-bar">
+          {/* 项目内搜索筛选工具栏 */}
+          <div className="toolbar toolbar-sm">
+            <button className="tool-btn" onClick={() => { setShowLocalSearchPanel(!showLocalSearchPanel); setShowStatusPopover(false) }}>
+              🔍
+            </button>
+            <button className="tool-btn" ref={statusBtnRef} onClick={() => { setShowStatusPopover(!showStatusPopover); setShowLocalSearchPanel(false) }}>
+              ☰
+            </button>
+            <span className="toolbar-hint">{statusFilter}</span>
+            <div className="toolbar-spacer" />
+          </div>
+
+          {/* 状态浮窗 */}
+          {showStatusPopover && (
+            <div className="popover">
+              {(['全部', '预付定金', '工作中', '交付'] as const).map((s) => (
+                <div
+                  key={s}
+                  className={`popover-item ${statusFilter === s ? 'popover-item-sel' : ''}`}
+                  onClick={() => { setStatusFilter(s); setShowStatusPopover(false) }}
+                >
+                  {s}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ---- 项目内搜索筛选 ---- */}
+          <div className="filter-bar" style={{ display: 'none' }}>
             <input
               className="search-input"
               type="text"
@@ -828,6 +894,75 @@ function App() {
             <div className="modal-footer">
               <button className="btn secondary" onClick={() => setDeleteOrderTarget(null)}>取消</button>
               <button className="btn btn-danger" onClick={confirmDeleteOrder}>确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- 全局搜索底部面板 ---- */}
+      {showGlobalSearchPanel && (
+        <div className="search-panel-backdrop" onClick={() => setShowGlobalSearchPanel(false)}>
+          <div className="search-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="search-panel-bar">
+              <input
+                className="search-input"
+                type="text"
+                placeholder="搜索角色、昵称、备注..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && globalSearch.trim()) { addSearchHistory(globalSearch); setShowGlobalSearchPanel(false) } }}
+                autoFocus
+              />
+              <button className="btn secondary btn-sm" onClick={() => { addSearchHistory(globalSearch); setShowGlobalSearchPanel(false) }}>
+                搜索
+              </button>
+            </div>
+            {globalSearch.trim() ? (
+              <div className="search-panel-results">
+                {globalResults.slice(0, 6).map(({ order, projectName, projectId }) => (
+                  <div key={order.id} className="search-panel-item" onClick={() => { setShowGlobalSearchPanel(false); enterProject(projectId) }}>
+                    <div className="spi-left">
+                      <div className="spi-character">{order.character}</div>
+                      <div className="spi-meta">{order.customerName || '无昵称'} · {projectName} · {order.status}</div>
+                    </div>
+                    <span className="spi-arrow">›</span>
+                  </div>
+                ))}
+                {globalResults.length === 0 && <div className="empty-hint" style={{ padding: 20 }}>没有匹配结果</div>}
+              </div>
+            ) : searchHistory.length > 0 ? (
+              <div className="search-panel-results">
+                <div className="search-history-header">
+                  <span>最近搜索</span>
+                  <button className="btn btn-sm btn-secondary" onClick={clearSearchHistory}>清除历史</button>
+                </div>
+                {searchHistory.map((h, i) => (
+                  <div key={i} className="search-panel-item" onClick={() => { setGlobalSearch(h) }}>
+                    <span>{h}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ---- 项目内搜索底部面板 ---- */}
+      {showLocalSearchPanel && (
+        <div className="search-panel-backdrop" onClick={() => setShowLocalSearchPanel(false)}>
+          <div className="search-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="search-panel-bar">
+              <input
+                className="search-input"
+                type="text"
+                placeholder="搜索角色、昵称、备注..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                autoFocus
+              />
+              <button className="btn secondary btn-sm" onClick={() => setShowLocalSearchPanel(false)}>
+                关闭
+              </button>
             </div>
           </div>
         </div>
