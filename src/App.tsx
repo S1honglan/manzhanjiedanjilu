@@ -64,6 +64,31 @@ function App() {
   const [localSearch, setLocalSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | '全部'>('全部')
 
+  const [sortBy, setSortBy] = useState<string>('default')
+
+  // ---- 排序后的项目列表 ----
+  const sortedProjects = useMemo(() => {
+    const list = projects.map((p) => {
+      const orderCount = p.orders.length
+      const income = p.orders.reduce((s, o) => s + o.totalIncome, 0)
+      return { ...p, orderCount, income }
+    })
+    switch (sortBy) {
+      case 'date':
+        return [...list].sort((a, b) => a.date.localeCompare(b.date))
+      case 'orders-asc':
+        return [...list].sort((a, b) => a.orderCount - b.orderCount)
+      case 'orders-desc':
+        return [...list].sort((a, b) => b.orderCount - a.orderCount)
+      case 'income-asc':
+        return [...list].sort((a, b) => a.income - b.income)
+      case 'income-desc':
+        return [...list].sort((a, b) => b.income - a.income)
+      default:
+        return list
+    }
+  }, [projects, sortBy])
+
   // ---- 滑动返回 ----
   const touchStartX = useRef(0)
 
@@ -461,25 +486,33 @@ function App() {
               {/* ---- 项目列表 ---- */}
               <div className="section-header">
                 <div className="section-label">漫展项目</div>
+                <select
+                  className="sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="default">默认排序</option>
+                  <option value="date">按时间顺序</option>
+                  <option value="orders-desc">订单降序</option>
+                  <option value="orders-asc">订单升序</option>
+                  <option value="income-desc">金额降序</option>
+                  <option value="income-asc">金额升序</option>
+                </select>
                 <div className="section-header-btns">
                   <button className="btn primary" onClick={openNewProjectForm}>
                     + 新建项目
                   </button>
-                  <button
-                    className="btn secondary"
-                    onClick={handleImportClick}
-                    disabled={importing}
-                  >
+                  <button className="btn secondary" onClick={handleImportClick} disabled={importing}>
                     {importing ? '导入中...' : '📥 导入'}
                   </button>
                 </div>
               </div>
 
-              {projects.length === 0 ? (
+              {sortedProjects.length === 0 ? (
                 <div className="empty-hint">还没有项目，点击「+ 新建项目」开始吧</div>
               ) : (
                 <div className="project-grid">
-                  {projects.map((project) => {
+                  {sortedProjects.map((project) => {
                     const orderCount = project.orders.length
                     const income = project.orders.reduce((s, o) => s + o.totalIncome, 0)
                     return (
