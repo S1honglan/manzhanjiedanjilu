@@ -370,11 +370,12 @@ export function importProjectsFromExcel(
               character: row.character,
               customerName: row.customerName,
               photoCount: row.photoCount,
-              price: row.price,
               deposit: row.deposit,
               totalIncome: row.totalIncome,
               status: row.status,
               note: row.note,
+              timeStart: '',
+              timeEnd: '',
               createdAt: now,
               updatedAt: now
             }

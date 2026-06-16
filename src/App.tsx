@@ -10,8 +10,9 @@ import './App.css'
 interface OrderFormData {
   character: string
   customerName: string
+  timeStart: string
+  timeEnd: string
   photoCount: number
-  price: number
   deposit: number
   totalIncome: number
   status: OrderStatus
@@ -22,13 +23,21 @@ function orderToForm(order: ClientOrder): OrderFormData {
   return {
     character: order.character,
     customerName: order.customerName,
+    timeStart: order.timeStart || '',
+    timeEnd: order.timeEnd || '',
     photoCount: order.photoCount,
-    price: order.price,
     deposit: order.deposit,
     totalIncome: order.totalIncome,
     status: order.status,
     note: order.note
   }
+}
+
+function formatTimeRange(start: string, end: string): string {
+  if (!start && !end) return ''
+  if (start && !end) return start
+  if (!start && end) return end
+  return `${start}—${end}`
 }
 
 // ==================== App ====================
@@ -61,8 +70,8 @@ function App() {
   const [showOrderForm, setShowOrderForm] = useState(false)
   const [editingOrder, setEditingOrder] = useState<ClientOrder | null>(null)
   const [orderForm, setOrderForm] = useState<OrderFormData>({
-    character: '', customerName: '', photoCount: 0,
-    price: 0, deposit: 0, totalIncome: 0,
+    character: '', customerName: '', timeStart: '', timeEnd: '', photoCount: 0,
+    deposit: 0, totalIncome: 0,
     status: '预付定金', note: ''
   })
 
@@ -76,6 +85,9 @@ function App() {
   const [localSearch, setLocalSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | '全部'>('全部')
   const [showUnfinishedOnly, setShowUnfinishedOnly] = useState(false)
+
+  // 卡片状态展开
+  const [expandStatusId, setExpandStatusId] = useState<string | null>(null)
 
   const [sortBy, setSortBy] = useState<string>('default')
 
@@ -202,7 +214,7 @@ function App() {
   }
 
   // ============ 订单 CRUD ============
-  function openNewOrderForm() { setEditingOrder(null); setOrderForm({ character: '', customerName: '', photoCount: 0, price: 0, deposit: 0, totalIncome: 0, status: '预付定金', note: '' }); setShowOrderForm(true) }
+  function openNewOrderForm() { setEditingOrder(null); setOrderForm({ character: '', customerName: '', timeStart: '', timeEnd: '', photoCount: 0, deposit: 0, totalIncome: 0, status: '预付定金', note: '' }); setShowOrderForm(true) }
   function openEditOrderForm(order: ClientOrder) { setEditingOrder(order); setOrderForm(orderToForm(order)); setShowOrderForm(true) }
 
   function handleSaveOrder() {
@@ -218,6 +230,14 @@ function App() {
     const all = loadProjects(); const i = all.findIndex(p => p.id === activeProject.id); if (i === -1) return
     all[i].orders = all[i].orders.filter(o => o.id !== deleteOrderTarget.id); all[i].updatedAt = new Date().toISOString()
     saveProjects(all); refresh(); syncActiveProject(); setDeleteOrderTarget(null)
+  }
+
+  // 卡片上直接改状态
+  function handleCardStatusChange(orderId: string, newStatus: OrderStatus) {
+    if (!activeProject) return
+    const all = loadProjects(); const i = all.findIndex(p => p.id === activeProject.id); if (i === -1) return
+    all[i].orders = all[i].orders.map(o => o.id === orderId ? { ...o, status: newStatus, updatedAt: new Date().toISOString() } : o)
+    all[i].updatedAt = new Date().toISOString(); saveProjects(all); refresh(); syncActiveProject(); setExpandStatusId(null)
   }
 
   // ============ Excel 导入 ============
@@ -302,7 +322,7 @@ function App() {
                     <div key={order.id} className="order-card" onClick={() => enterProject(projectId)}>
                       <div className="order-card-row"><div className="order-character">{order.character}</div><div className={`status-tag status-${order.status}`}>{order.status}</div></div>
                       <div className="order-card-meta">
-                        {order.customerName && <span>👤 {order.customerName}</span>}<span>📷 {order.photoCount}张</span><span>¥{order.price}</span>{order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span>
+                        {order.customerName && <span>👤 {order.customerName}</span>}{(order.timeStart || order.timeEnd) && <span>🕐 {formatTimeRange(order.timeStart, order.timeEnd)}</span>}<span>📷 {order.photoCount}张</span>{order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span>
                       </div>
                       <div className="order-card-meta" style={{ marginTop: 2 }}><span>📂 {projectName}</span></div>
                       {order.note && <div className="order-note">{order.note}</div>}
@@ -361,7 +381,7 @@ function App() {
               {unfinishedOrders.map(({ order, projectName, projectId }) => (
                 <div key={order.id} className="order-card" onClick={() => enterProject(projectId)}>
                   <div className="order-card-row"><div className="order-character">{order.character}</div><div className={`status-tag status-${order.status}`}>{order.status}</div></div>
-                  <div className="order-card-meta">{order.customerName && <span>👤 {order.customerName}</span>}<span>📷 {order.photoCount}张</span><span>¥{order.price}</span>{order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span></div>
+                  <div className="order-card-meta">{order.customerName && <span>👤 {order.customerName}</span>}{(order.timeStart || order.timeEnd) && <span>🕐 {formatTimeRange(order.timeStart, order.timeEnd)}</span>}<span>📷 {order.photoCount}张</span>{order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span></div>
                   <div className="order-card-meta" style={{ marginTop: 2 }}><span>📂 {projectName}</span></div>
                   {order.note && <div className="order-note">{order.note}</div>}
                 </div>
@@ -396,14 +416,38 @@ function App() {
 
           {getFilteredOrders().length === 0 ? (<div className="empty-hint">{localSearch || statusFilter !== '全部' ? '没有匹配的订单' : '暂无订单，点击「+ 新建订单」添加'}</div>) : (
             <div className="order-grid">
-              {getFilteredOrders().map(order => (
-                <div key={order.id} className="order-card" onClick={() => openEditOrderForm(order)}>
-                  <div className="order-card-row"><div className="order-character">{order.character}</div><div className={`status-tag status-${order.status}`}>{order.status}</div></div>
-                  <div className="order-card-meta">{order.customerName && <span>👤 {order.customerName}</span>}<span>📷 {order.photoCount}张</span><span>¥{order.price}</span>{order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span></div>
-                  {order.note && <div className="order-note">{order.note}</div>}
-                  <div className="order-card-footer"><button className="btn btn-sm btn-secondary" onClick={e => { e.stopPropagation(); setDeleteOrderTarget(order) }}>删除</button></div>
-                </div>
-              ))}
+              {getFilteredOrders().map(order => {
+                const isExpanded = expandStatusId === order.id
+                return (
+                  <div key={order.id} className={`order-card ${isExpanded ? 'order-card-expanded' : ''}`}>
+                    <div className="order-card-row">
+                      <div className="order-character" onClick={() => openEditOrderForm(order)}>{order.character}</div>
+                      <div className={`status-tag status-${order.status}`} onClick={() => setExpandStatusId(isExpanded ? null : order.id)}>{order.status} {isExpanded ? '▲' : '▼'}</div>
+                    </div>
+                    <div className="order-card-meta" onClick={() => openEditOrderForm(order)}>
+                      {order.customerName && <span>👤 {order.customerName}</span>}
+                      {(order.timeStart || order.timeEnd) && <span>🕐 {formatTimeRange(order.timeStart, order.timeEnd)}</span>}
+                      <span>📷 {order.photoCount}张</span>
+                      {order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span>
+                    </div>
+                    {order.note && <div className="order-note" onClick={() => openEditOrderForm(order)}>{order.note}</div>}
+                    {isExpanded && (
+                      <div className="status-expand">
+                        <div className="status-expand-label">更改状态：</div>
+                        <div className="status-expand-options">
+                          {(['预付定金', '工作中', '交付'] as OrderStatus[]).map(s => (
+                            <div key={s} className={`status-choice ${order.status === s ? 'status-choice-active' : ''}`} onClick={() => handleCardStatusChange(order.id, s)}>{s}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="order-card-footer">
+                      <button className="btn btn-sm btn-secondary" onClick={() => openEditOrderForm(order)}>编辑</button>
+                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: 6 }} onClick={e => { e.stopPropagation(); setDeleteOrderTarget(order) }}>删除</button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>
@@ -458,8 +502,11 @@ function App() {
               <div className="form-group"><label>拍摄角色 *</label><input type="text" placeholder="如：雷电将军（原神）" value={orderForm.character} onChange={e => setOrderForm({ ...orderForm, character: e.target.value })} autoFocus /></div>
               <div className="form-group"><label>客户昵称</label><input type="text" placeholder="如：晚风（选填）" value={orderForm.customerName} onChange={e => setOrderForm({ ...orderForm, customerName: e.target.value })} /></div>
               <div className="form-row">
+                <div className="form-group"><label>开始时间</label><input type="time" value={orderForm.timeStart} onChange={e => setOrderForm({ ...orderForm, timeStart: e.target.value })} /></div>
+                <div className="form-group"><label>结束时间</label><input type="time" value={orderForm.timeEnd} onChange={e => setOrderForm({ ...orderForm, timeEnd: e.target.value })} /></div>
+              </div>
+              <div className="form-row">
                 <div className="form-group"><label>拍摄张数</label><input type="number" value={orderForm.photoCount || ''} onChange={e => setOrderForm({ ...orderForm, photoCount: parseInt(e.target.value) || 0 })} /></div>
-                <div className="form-group"><label>全款价格 (¥)</label><input type="number" value={orderForm.price || ''} onChange={e => setOrderForm({ ...orderForm, price: parseFloat(e.target.value) || 0 })} /></div>
               </div>
               <div className="form-row">
                 <div className="form-group"><label>定金 (¥)</label><input type="number" value={orderForm.deposit || ''} onChange={e => setOrderForm({ ...orderForm, deposit: parseFloat(e.target.value) || 0 })} /></div>

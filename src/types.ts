@@ -8,9 +8,10 @@ export interface ClientOrder {
   character: string        // 拍摄角色（卡片大标题）
   customerName: string     // 客户昵称
   photoCount: number       // 拍摄张数
-  price: number            // 全款价格
   deposit: number          // 客户付的定金
   totalIncome: number      // 全部收入
+  timeStart: string         // 开始时间（HH:MM）
+  timeEnd: string           // 结束时间（HH:MM）
   status: OrderStatus      // 订单状态
   note: string             // 备注
   createdAt: string        // 创建时间
