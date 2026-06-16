@@ -528,6 +528,18 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* ---- 订单删除确认 ---- */}
+      {deleteOrderTarget && (
+        <div className="modal-backdrop" onClick={() => setDeleteOrderTarget(null)}>
+          <div className="modal-panel modal-confirm" onClick={e => e.stopPropagation()}>
+            <div className="modal-header"><div className="modal-title">确认删除</div></div>
+            <div className="modal-body"><p>确定要删除「<strong>{deleteOrderTarget.character}</strong>」的订单吗？</p><p className="text-secondary">此操作不可撤销。</p></div>
+            <div className="modal-footer"><button className="btn secondary" onClick={() => setDeleteOrderTarget(null)}>取消</button><button className="btn btn-danger" onClick={confirmDeleteOrder}>确认删除</button></div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
