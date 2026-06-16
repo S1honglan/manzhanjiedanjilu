@@ -565,33 +565,18 @@ function App() {
                   className="order-card"
                   onClick={() => openEditOrderForm(order)}
                 >
-                  <div className="order-card-header">
+                  <div className="order-card-row">
                     <div className="order-character">{order.character}</div>
                     <div className={`status-tag status-${order.status}`}>
                       {order.status}
                     </div>
                   </div>
-                  <div className="order-info-grid">
-                    <div className="order-info-item">
-                      <span className="order-info-label">昵称</span>
-                      <span>{order.customerName}</span>
-                    </div>
-                    <div className="order-info-item">
-                      <span className="order-info-label">张数</span>
-                      <span>{order.photoCount} 张</span>
-                    </div>
-                    <div className="order-info-item">
-                      <span className="order-info-label">全款</span>
-                      <span>¥{order.price}</span>
-                    </div>
-                    <div className="order-info-item">
-                      <span className="order-info-label">定金</span>
-                      <span>¥{order.deposit}</span>
-                    </div>
-                    <div className="order-info-item">
-                      <span className="order-info-label">总收入</span>
-                      <span>¥{order.totalIncome}</span>
-                    </div>
+                  <div className="order-card-meta">
+                    {order.customerName && <span>👤 {order.customerName}</span>}
+                    <span>📷 {order.photoCount}张</span>
+                    <span>¥{order.price}</span>
+                    {order.deposit > 0 && <span>定 ¥{order.deposit}</span>}
+                    <span>收 ¥{order.totalIncome}</span>
                   </div>
                   {order.note && (
                     <div className="order-note">{order.note}</div>
