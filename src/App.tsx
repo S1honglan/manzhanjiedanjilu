@@ -253,7 +253,7 @@ function App() {
 
   function handleSaveOrder() {
     if (!activeProject) return
-    if (!orderForm.character.trim() || !orderForm.customerName.trim()) return
+    if (!orderForm.character.trim()) return
 
     const now = new Date().toISOString()
     const all = loadProjects()
@@ -715,10 +715,10 @@ function App() {
                 />
               </div>
               <div className="form-group">
-                <label>客户昵称 *</label>
+                <label>客户昵称</label>
                 <input
                   type="text"
-                  placeholder="如：晚风"
+                  placeholder="如：晚风（选填）"
                   value={orderForm.customerName}
                   onChange={(e) => setOrderForm({ ...orderForm, customerName: e.target.value })}
                 />
@@ -787,7 +787,7 @@ function App() {
               <button
                 className="btn primary"
                 onClick={handleSaveOrder}
-                disabled={!orderForm.character.trim() || !orderForm.customerName.trim()}
+                disabled={!orderForm.character.trim()}
               >
                 {editingOrder ? '保存' : '添加'}
               </button>
