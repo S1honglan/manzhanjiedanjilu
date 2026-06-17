@@ -294,6 +294,21 @@ html.dark {
 .order-card-预付定金 { background: #d6dfe8 !important; border-color: #c3ced9 !important; }
 .order-card-工作中   { background: #ede4ce !important; border-color: #ded3b5 !important; }
 .order-card-交付     { background: #d2dfd0 !important; border-color: #bfcdbd !important; }
+.order-card-预付定金 .order-character,
+.order-card-工作中   .order-character,
+.order-card-交付     .order-character { color: #2c3238 !important; }
+.order-card-预付定金 .order-card-meta,
+.order-card-工作中   .order-card-meta,
+.order-card-交付     .order-card-meta { color: #5a6570 !important; }
+.order-card-预付定金 .order-card-meta span,
+.order-card-工作中   .order-card-meta span,
+.order-card-交付     .order-card-meta span { color: #5a6570 !important; }
+.order-card-预付定金 .order-note,
+.order-card-工作中   .order-note,
+.order-card-交付     .order-note { color: #5a6570 !important; }
+.order-card-预付定金 .order-card-footer,
+.order-card-工作中   .order-card-footer,
+.order-card-交付     .order-card-footer { border-top-color: rgba(0,0,0,0.10) !important; }
 
 .order-card-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
 .order-character {
