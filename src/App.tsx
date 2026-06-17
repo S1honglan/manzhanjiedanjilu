@@ -95,8 +95,6 @@ function App() {
   const [showStatusPopover, setShowStatusPopover] = useState(false)
   const statusBtnRef = useRef<HTMLButtonElement | null>(null)
 
-  // ---- 滚动管理 ----
-
   // ---- 排序后的项目列表 ----
   const sortedProjects = useMemo(() => {
     const list = projects.map(p => ({ ...p, orderCount: p.orders.length, income: p.orders.reduce((s, o) => s + o.totalIncome, 0), unfinished: p.orders.filter(o => o.status !== '交付').length }))
@@ -413,11 +411,10 @@ function App() {
 
           {getFilteredOrders().length === 0 ? (<div className="empty-hint">{localSearch || statusFilter !== '全部' ? '没有匹配的订单' : '暂无订单，点击「+ 新建订单」添加'}</div>) : (
             <div className="order-grid">
-              {getFilteredOrders().map((order, idx) => {
+              {getFilteredOrders().map(order => {
                 return (
                   <div
                     key={order.id}
-                    data-order-id={order.id}
                     className={`order-card order-card-${order.status}`}
                   >
                     <div className="order-card-row">
