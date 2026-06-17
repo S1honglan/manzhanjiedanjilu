@@ -1,8 +1,7 @@
-import { useEffect, useState, useMemo, useRef, useCallback, ChangeEvent } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { ExpoProject, ClientOrder, OrderStatus, PROJECT_COLORS, getDarkCardBg } from './types'
 import { initialProjects } from './data'
 import { loadProjects, saveProjects } from './storage'
-import { importProjectsFromExcel } from './excel'
 import './App.css'
 
 // ==================== 类型 ====================
@@ -98,16 +97,6 @@ function App() {
   const [showStatusPopover, setShowStatusPopover] = useState(false)
   const statusBtnRef = useRef<HTMLButtonElement | null>(null)
 
-  // ---- 搜索历史 ----
-  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
-    try { const r = localStorage.getItem('search-history'); return r ? JSON.parse(r) : [] } catch { return [] }
-  })
-  function addSearchHistory(text: string) {
-    const t = text.trim(); if (!t) return
-    setSearchHistory(prev => { const n = [t, ...prev.filter(x => x !== t)].slice(0, 10); localStorage.setItem('search-history', JSON.stringify(n)); return n })
-  }
-  function clearSearchHistory() { setSearchHistory([]); localStorage.removeItem('search-history') }
-
   // ---- 排序后的项目列表 ----
   const sortedProjects = useMemo(() => {
     const list = projects.map(p => ({ ...p, orderCount: p.orders.length, income: p.orders.reduce((s, o) => s + o.totalIncome, 0), unfinished: p.orders.filter(o => o.status !== '交付').length }))
@@ -136,11 +125,6 @@ function App() {
 
   // 滑动返回
   const touchStartX = useRef(0)
-
-  // Excel
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ newProjects: number; newOrders: number; errors: string[] } | null>(null)
-  const importInputRef = useRef<HTMLInputElement | null>(null)
 
   // 初始化
   useEffect(() => {
@@ -240,18 +224,6 @@ function App() {
     all[i].updatedAt = new Date().toISOString(); saveProjects(all); refresh(); syncActiveProject(); setExpandStatusId(null)
   }
 
-  // ============ Excel 导入 ============
-  function handleImportClick() { importInputRef.current?.click() }
-  async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return; setImporting(true); setImportResult(null)
-    try {
-      const result = await importProjectsFromExcel(file, loadProjects())
-      saveProjects(result.projects); refresh(); syncActiveProject(); setImportResult(result); setTimeout(() => setImportResult(null), 5000)
-    } catch (error) {
-      setImportResult({ newProjects: 0, newOrders: 0, errors: [error instanceof Error ? error.message : '导入失败'] }); setTimeout(() => setImportResult(null), 8000)
-    } finally { setImporting(false); e.target.value = '' }
-  }
-
   // ============ 渲染 ============
 
   return (
@@ -290,7 +262,6 @@ function App() {
             <button className="tool-btn" onClick={() => { setShowSortPopover(!showSortPopover); setShowGlobalSearchPanel(false) }}>↕</button>
             <button className="tool-btn" onClick={() => { setShowGlobalSearchPanel(!showGlobalSearchPanel); setShowSortPopover(false) }}>🔍</button>
             <div className="toolbar-spacer" />
-            <button className="tool-btn" onClick={handleImportClick} disabled={importing}>📥</button>
             <button className="btn primary" onClick={openNewProjectForm}>+ 新建项目</button>
           </div>
 
@@ -302,6 +273,14 @@ function App() {
             </div>
           )}
 
+          {/* ---- 手机端全局搜索面板 ---- */}
+          {showGlobalSearchPanel && (
+            <div className="search-panel-bar">
+              <input className="search-input" type="text" placeholder="搜索角色名、昵称、备注..." value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} autoFocus />
+              {globalSearch.trim() && <button className="btn secondary btn-sm" onClick={() => setGlobalSearch('')}>清除</button>}
+            </div>
+          )}
+
           {/* ---- 桌面搜索栏 ---- */}
           <div className="global-search-bar">
             <input className="search-input" type="text" placeholder="搜索订单（角色名、昵称、备注）..." value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} />
@@ -309,10 +288,6 @@ function App() {
           </div>
 
           {/* ---- 全局搜索结果 ---- */}
-          {globalSearch.trim() ? (
-            <>{/* ... same ... */}</>
-          ) : null}
-
           {globalSearch.trim() ? (
             <>
               <div className="search-result-hint">找到 {globalResults.length} 个匹配订单</div>
@@ -333,14 +308,6 @@ function App() {
             </>
           ) : (
             <>
-              {importResult && (
-                <div className={`import-notice ${importResult.errors.length > 0 ? 'import-notice-warn' : ''}`}>
-                  {importResult.errors.length > 0 ? (<><div className="import-notice-title">⚠️ 导入完成，但存在一些问题</div><ul className="import-notice-list">{importResult.errors.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}</ul></>) : (<div className="import-notice-title">✅ 导入成功！新增 {importResult.newProjects} 个项目，{importResult.newOrders} 个订单</div>)}
-                  <button className="icon-btn import-dismiss" onClick={() => setImportResult(null)}>×</button>
-                </div>
-              )}
-
-              {/* ---- 项目列表 ---- */}
               {sortedProjects.length === 0 ? <div className="empty-hint">还没有项目，点击「+ 新建项目」开始吧</div> : (
                 <div className="project-grid">
                   {sortedProjects.map(project => {
@@ -408,11 +375,43 @@ function App() {
             <div className="toolbar-spacer" />
           </div>
 
+          {/* 手机端：搜索面板 */}
+          {showLocalSearchPanel && (
+            <div className="search-panel">
+              <input className="search-input" type="text" placeholder="搜索角色名、昵称、备注..." value={localSearch} onChange={e => setLocalSearch(e.target.value)} autoFocus />
+              {localSearch && <button className="btn secondary btn-sm" onClick={() => setLocalSearch('')}>清除</button>}
+            </div>
+          )}
+
+          {/* 桌面端：搜索栏+状态筛选 */}
+          <div className="project-search-bar desktop-only">
+            <input className="search-input" type="text" placeholder="搜索订单（角色名、昵称、备注）..." value={localSearch} onChange={e => setLocalSearch(e.target.value)} />
+            {localSearch && <button className="btn secondary btn-sm" onClick={() => setLocalSearch('')}>清除</button>}
+            <select className="filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as OrderStatus | '全部')}>
+              <option value="全部">全部状态</option>
+              <option value="预付定金">预付定金</option>
+              <option value="工作中">工作中</option>
+              <option value="交付">交付</option>
+            </select>
+          </div>
+
           {showStatusPopover && (
             <div className="popover">
               {( ['全部', '预付定金', '工作中', '交付'] as const ).map(s => (<div key={s} className={`popover-item ${statusFilter === s ? 'popover-item-sel' : ''}`} onClick={() => { setStatusFilter(s); setShowStatusPopover(false) }}>{s}</div>))}
             </div>
           )}
+
+          {/* 桌面端：搜索栏+状态筛选 */}
+          <div className="project-search-bar desktop-only">
+            <input className="search-input" type="text" placeholder="搜索订单（角色名、昵称、备注）..." value={localSearch} onChange={e => setLocalSearch(e.target.value)} />
+            {localSearch && <button className="btn secondary btn-sm" onClick={() => setLocalSearch('')}>清除</button>}
+            <select className="filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as OrderStatus | '全部')}>
+              <option value="全部">全部状态</option>
+              <option value="预付定金">预付定金</option>
+              <option value="工作中">工作中</option>
+              <option value="交付">交付</option>
+            </select>
+          </div>
 
           {getFilteredOrders().length === 0 ? (<div className="empty-hint">{localSearch || statusFilter !== '全部' ? '没有匹配的订单' : '暂无订单，点击「+ 新建订单」添加'}</div>) : (
             <div className="order-grid">
@@ -497,34 +496,159 @@ function App() {
       {showOrderForm && (
         <div className="modal-backdrop" onClick={() => setShowOrderForm(false)}>
           <div className="modal-panel modal-order" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><div className="modal-title">{editingOrder ? '编辑订单' : '新建订单'}</div><button className="icon-btn" onClick={() => setShowOrderForm(false)}>×</button></div>
-            <div className="modal-body">
-              <div className="form-group"><label>拍摄角色 *</label><input type="text" placeholder="如：雷电将军（原神）" value={orderForm.character} onChange={e => setOrderForm({ ...orderForm, character: e.target.value })} autoFocus /></div>
-              <div className="form-group"><label>客户昵称</label><input type="text" placeholder="如：晚风（选填）" value={orderForm.customerName} onChange={e => setOrderForm({ ...orderForm, customerName: e.target.value })} /></div>
-              <div className="form-row">
-                <div className="form-group"><label>开始时间</label><input type="time" value={orderForm.timeStart} onChange={e => setOrderForm({ ...orderForm, timeStart: e.target.value })} /></div>
-                <div className="form-group"><label>结束时间</label><input type="time" value={orderForm.timeEnd} onChange={e => setOrderForm({ ...orderForm, timeEnd: e.target.value })} /></div>
+            <div className="modal-header">
+              <div className="modal-title">{editingOrder ? '编辑订单' : '新建订单'}</div>
+              <button className="icon-btn" onClick={() => setShowOrderForm(false)}>×</button>
+            </div>
+
+            <div className="modal-body order-form-body">
+              {/* ===== 1. 拍摄角色 — 物品名称区域 ===== */}
+              <div className="of-field">
+                <label className="of-label">拍摄角色 <span className="of-required">*</span></label>
+                <input
+                  className="of-input of-input-lg"
+                  type="text"
+                  placeholder="如：雷电将军（原神）"
+                  value={orderForm.character}
+                  onChange={e => setOrderForm({ ...orderForm, character: e.target.value })}
+                  autoFocus
+                />
               </div>
-              <div className="form-row">
-                <div className="form-group"><label>拍摄张数</label><input type="number" value={orderForm.photoCount || ''} onChange={e => setOrderForm({ ...orderForm, photoCount: parseInt(e.target.value) || 0 })} /></div>
+
+              {/* ===== 2. 客户昵称 | 拍摄张数 ===== */}
+              <div className="of-row">
+                <div className="of-field of-flex-1">
+                  <label className="of-label">客户昵称</label>
+                  <input
+                    className="of-input"
+                    type="text"
+                    placeholder="如：晚风"
+                    value={orderForm.customerName}
+                    onChange={e => setOrderForm({ ...orderForm, customerName: e.target.value })}
+                  />
+                </div>
+                <div className="of-field of-flex-1">
+                  <label className="of-label">拍摄张数</label>
+                  <input
+                    className="of-input"
+                    type="number"
+                    placeholder="0"
+                    value={orderForm.photoCount || ''}
+                    onChange={e => setOrderForm({ ...orderForm, photoCount: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
-              <div className="form-row">
-                <div className="form-group"><label>定金 (¥)</label><input type="number" value={orderForm.deposit || ''} onChange={e => setOrderForm({ ...orderForm, deposit: parseFloat(e.target.value) || 0 })} /></div>
-                <div className="form-group"><label>全部收入 (¥)</label><input type="number" value={orderForm.totalIncome || ''} onChange={e => setOrderForm({ ...orderForm, totalIncome: parseFloat(e.target.value) || 0 })} /></div>
+
+              {/* ===== 3. 定金 | 全部收入 ===== */}
+              <div className="of-row">
+                <div className="of-field of-flex-1">
+                  <label className="of-label">定金 (¥)</label>
+                  <input
+                    className="of-input"
+                    type="number"
+                    placeholder="0"
+                    value={orderForm.deposit || ''}
+                    onChange={e => setOrderForm({ ...orderForm, deposit: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="of-field of-flex-1">
+                  <label className="of-label">全部收入 (¥)</label>
+                  <input
+                    className="of-input"
+                    type="number"
+                    placeholder="0"
+                    value={orderForm.totalIncome || ''}
+                    onChange={e => setOrderForm({ ...orderForm, totalIncome: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
-              <div className="form-row">
-                <div className="form-group"><label>订单状态</label><select value={orderForm.status} onChange={e => setOrderForm({ ...orderForm, status: e.target.value as OrderStatus })}><option value="预付定金">预付定金</option><option value="工作中">工作中</option><option value="交付">交付</option></select></div>
-              </div>
-              <div className="form-group"><label>备注</label><input type="text" placeholder="补充说明（可选）" value={orderForm.note} onChange={e => setOrderForm({ ...orderForm, note: e.target.value })} /></div>
-              {editingOrder && (
-                <div style={{ marginTop: 16 }}>
-                  {orderDeleteConfirm ? (
-                    <div className="pj-del-confirm"><span className="pj-del-msg">确定要删除此订单？</span><button className="btn btn-danger btn-sm" onClick={confirmDeleteOrder}>确认</button><button className="btn btn-secondary btn-sm" onClick={() => setOrderDeleteConfirm(false)}>取消</button></div>
-                  ) : (<button className="btn btn-danger btn-sm" onClick={() => setOrderDeleteConfirm(true)}>删除此订单</button>)}
+
+              {/* ===== 4. 附加项 — 备注区域 ===== */}
+              {editingOrder ? (
+                <div className="of-extra-section">
+                  <div className="of-extra-header">附加项</div>
+                  <div className="of-extra-row">
+                    <input
+                      className="of-input of-extra-input"
+                      type="text"
+                      placeholder="备注说明…"
+                      value={orderForm.note}
+                      onChange={e => setOrderForm({ ...orderForm, note: e.target.value })}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="of-field">
+                  <label className="of-label">备注</label>
+                  <input
+                    className="of-input"
+                    type="text"
+                    placeholder="补充说明（可选）"
+                    value={orderForm.note}
+                    onChange={e => setOrderForm({ ...orderForm, note: e.target.value })}
+                  />
                 </div>
               )}
+
+              {/* ===== 5. 开始时间 | 结束时间 ===== */}
+              <div className="of-row">
+                <div className="of-field of-flex-1">
+                  <label className="of-label">开始时间</label>
+                  <input
+                    className="of-input"
+                    type="time"
+                    value={orderForm.timeStart}
+                    onChange={e => setOrderForm({ ...orderForm, timeStart: e.target.value })}
+                  />
+                </div>
+                <div className="of-field of-flex-1">
+                  <label className="of-label">结束时间 <span className="of-optional">(选填)</span></label>
+                  <input
+                    className="of-input"
+                    type="time"
+                    value={orderForm.timeEnd}
+                    onChange={e => setOrderForm({ ...orderForm, timeEnd: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* ===== 6. 订单状态 — 分段按钮组 ===== */}
+              <div className="of-field">
+                <label className="of-label">订单状态</label>
+                <div className="of-segmented">
+                  {(['预付定金', '工作中', '交付'] as OrderStatus[]).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`of-seg-btn ${orderForm.status === s ? 'of-seg-sel' : ''}`}
+                      onClick={() => setOrderForm({ ...orderForm, status: s })}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="modal-footer"><button className="btn secondary" onClick={() => setShowOrderForm(false)}>取消</button><button className="btn primary" onClick={handleSaveOrder} disabled={!orderForm.character.trim()}>{editingOrder ? '保存' : '添加'}</button></div>
+
+            <div className="modal-footer order-form-footer">
+              {editingOrder && (
+                orderDeleteConfirm ? (
+                  <div className="of-del-confirm">
+                    <span>确定删除此订单？</span>
+                    <button className="btn btn-danger btn-sm" onClick={confirmDeleteOrder}>确认</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setOrderDeleteConfirm(false)}>取消</button>
+                  </div>
+                ) : (
+                  <button className="btn btn-danger-outline btn-sm" onClick={() => setOrderDeleteConfirm(true)}>删除此订单</button>
+                )
+              )}
+              <div className="of-footer-btns">
+                <button className="btn secondary" onClick={() => setShowOrderForm(false)}>取消</button>
+                <button className="btn primary" onClick={handleSaveOrder} disabled={!orderForm.character.trim()}>
+                  {editingOrder ? '保存' : '添加'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
