@@ -77,7 +77,10 @@ html.dark .order-card-交付     { box-shadow: 0 1px 6px rgba(0,0,0,0.40) !impor
   max-width: 960px;
   margin: 0 auto;
   padding: 20px 24px 120px;
+  padding-bottom: max(120px, calc(env(safe-area-inset-bottom, 0px) + 80px));
   min-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .topbar {
