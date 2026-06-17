@@ -9,17 +9,24 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
-        name: '漫展接单记录',
+        name: '漫展接单',
         short_name: '漫展接单',
         description: '漫展拍摄接单记录管理应用',
         theme_color: '#9CC3DF',
         background_color: '#eef2f3',
         display: 'standalone',
-        orientation: 'any',
+        scope: '/',
         start_url: '/',
+        lang: 'zh-CN',
+        orientation: 'any',
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          {
+            src: 'icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
         ]
       },
       workbox: {
