@@ -9,6 +9,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="漫展接单" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <script>
+      // PWA 安装提示
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+      });
+    </script>
     <title>漫展接单管理</title>
     <link rel="manifest" href="/manifest.json" />
   </head>
