@@ -315,7 +315,7 @@ function App() {
                         <div className="project-card-body">
                           <div className="project-card-name">{project.name}</div>
                           <div className="project-card-meta-row">
-                            {project.dateEnd ? (<span>📅 {project.date} ~ {project.dateEnd}</span>) : (<span>📅 {project.date}</span>)}
+                            {project.dateEnd ? (<span>{project.date} ~ {project.dateEnd}</span>) : (<span>{project.date}</span>)}
                             <span className="project-card-stat">{orderCount} 单</span>
                             <span className="project-card-income">¥{income.toLocaleString()}</span>
                             {unfinished > 0 && <span className="project-card-unfinished">{unfinished} 未完成</span>}
@@ -359,7 +359,7 @@ function App() {
         <section className="project-page">
           <div className="section-header">
             <button className="btn secondary" onClick={handleBackHome}>← 返回</button>
-            <div style={{ flex: 1 }}><div className="section-label">{activeProject.name}</div><div className="section-date">📅 {activeProject.date}{activeProject.dateEnd ? ` ~ ${activeProject.dateEnd}` : ''}</div></div>
+            <div style={{ flex: 1 }}><div className="section-label">{activeProject.name}</div><div className="section-date">{activeProject.date}{activeProject.dateEnd ? ` ~ ${activeProject.dateEnd}` : ''}</div></div>
             <button className="btn primary" onClick={openNewOrderForm}>+ 新建订单</button>
           </div>
 
