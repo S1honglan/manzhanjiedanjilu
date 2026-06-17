@@ -329,6 +329,11 @@ html.dark .order-card-交付     { box-shadow: 0 1px 6px rgba(0,0,0,0.40) !impor
 .order-card-工作中   .order-card-footer,
 .order-card-交付     .order-card-footer { border-top-color: rgba(0,0,0,0.10) !important; }
 
+/* 莫兰迪卡片暗色模式下 hover 效果 */
+html.dark .order-card-预付定金:hover,
+html.dark .order-card-工作中:hover,
+html.dark .order-card-交付:hover     { box-shadow: 0 4px 16px rgba(0,0,0,0.50) !important; }
+
 .order-card-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
 .order-character {
   font-size: 18px; font-weight: 700; color: var(--color-text); line-height: 1.3;
