@@ -305,11 +305,7 @@ html.dark .order-card-交付     { box-shadow: 0 1px 6px rgba(0,0,0,0.40) !impor
 .order-card {
   background: var(--color-card); border: 1px solid var(--color-border);
   border-radius: 10px; padding: 14px 16px 10px; cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.12s ease;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
+  transition: all 0.2s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .order-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-card-hover); border-color: var(--color-primary-deep); }
 
@@ -472,25 +468,6 @@ html.dark .order-card-交付:hover     { box-shadow: 0 4px 16px rgba(0,0,0,0.50)
   outline: none;
   border-color: var(--color-primary-deep);
   box-shadow: 0 0 0 3px rgba(156,195,223,0.2);
-}
-
-/* 拖拽相关 */
-.drag-ghost {
-  font-family: inherit;
-  user-select: none;
-  -webkit-user-select: none;
-}
-/* 被拖拽卡片原位占位 */
-.order-card.drag-occupied {
-  opacity: 0.25 !important;
-  transform: scale(0.96) !important;
-}
-/* 拖拽悬停目标高亮 */
-.order-card.drag-over {
-  outline: 3px dashed var(--color-primary-deep) !important;
-  outline-offset: -3px;
-  transform: scale(1.03) !important;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.15) !important;
 }
 
 /* ===== 新版订单表单样式 ===== */
