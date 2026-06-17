@@ -68,6 +68,9 @@ html.dark .order-card-交付     .order-note { color: #5a6570 !important; }
 html.dark .order-card-预付定金 .order-card-footer,
 html.dark .order-card-工作中   .order-card-footer,
 html.dark .order-card-交付     .order-card-footer { border-top-color: rgba(0,0,0,0.10) !important; }
+html.dark .order-card-预付定金,
+html.dark .order-card-工作中,
+html.dark .order-card-交付     { box-shadow: 0 1px 6px rgba(0,0,0,0.40) !important; }
 
 /* ===== 全局 ===== */
 .app-shell {
