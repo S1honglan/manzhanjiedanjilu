@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
+      includeAssets: ['icon-192.png', 'apple-touch-icon.png'],
       manifest: {
         name: '漫展接单',
         short_name: '漫展接单',
@@ -20,13 +20,7 @@ export default defineConfig({
         lang: 'zh-CN',
         orientation: 'any',
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-          {
-            src: 'icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
+          { src: 'icon-192.png', sizes: '192x192 512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {
