@@ -474,7 +474,7 @@ function App() {
                   const setEY = (v: string) => setProjectFormDateEnd(v ? `${v}-${em || '01'}-${ed || '01'}` : `-${em}-${ed}`)
                   const setEM = (v: string) => setProjectFormDateEnd(`${ey || y || '2026'}-${pad(Number(v))}-${ed || '01'}`)
                   const setED = (v: string) => setProjectFormDateEnd(`${ey || y || '2026'}-${em || '01'}-${pad(Number(v))}`)
-                  const years = ['2025','2026','2027','2028','2029','2030']
+                  const years = Array.from({length:75},(_,i)=>String(2025+i))
                   const months = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'))
                   const days = Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'))
                   return (
