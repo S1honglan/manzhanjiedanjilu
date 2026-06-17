@@ -338,6 +338,7 @@ export function importProjectsFromExcel(
                 id: `proj-${Date.now()}-${newProjectsCount}`,
                 name: nameKey,
                 date: row.projectDate || '',
+                dateEnd: '',
                 color: '#ffffff',
                 orders: [],
                 createdAt: now,

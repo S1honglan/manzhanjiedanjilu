@@ -59,6 +59,7 @@ function App() {
   const [editingProject, setEditingProject] = useState<ExpoProject | null>(null)
   const [projectFormName, setProjectFormName] = useState('')
   const [projectFormDate, setProjectFormDate] = useState('')
+  const [projectFormDateEnd, setProjectFormDateEnd] = useState('')
   const [projectFormColor, setProjectFormColor] = useState('#ffffff')
   const [projectFormOrders, setProjectFormOrders] = useState<ClientOrder[]>([])
 
@@ -174,17 +175,17 @@ function App() {
   }, [activeProject])
 
   // ============ 项目 CRUD ============
-  function openNewProjectForm() { setEditingProject(null); setProjectFormName(''); setProjectFormDate(''); setProjectFormColor('#ffffff'); setProjectFormOrders([]); setShowProjectForm(true) }
-  function openEditProjectForm(project: ExpoProject) { setEditingProject(project); setProjectFormName(project.name); setProjectFormDate(project.date); setProjectFormColor(project.color || '#ffffff'); setProjectFormOrders([...project.orders]); setShowProjectForm(true) }
+  function openNewProjectForm() { setEditingProject(null); setProjectFormName(''); setProjectFormDate(''); setProjectFormDateEnd(''); setProjectFormColor('#ffffff'); setProjectFormOrders([]); setShowProjectForm(true) }
+  function openEditProjectForm(project: ExpoProject) { setEditingProject(project); setProjectFormName(project.name); setProjectFormDate(project.date); setProjectFormDateEnd(project.dateEnd || ''); setProjectFormColor(project.color || '#ffffff'); setProjectFormOrders([...project.orders]); setShowProjectForm(true) }
 
   function handleSaveProject() {
     if (!projectFormName.trim() || !projectFormDate) return
     const now = new Date().toISOString(); const all = loadProjects()
     if (editingProject) {
       const i = all.findIndex(p => p.id === editingProject.id)
-      if (i !== -1) all[i] = { ...all[i], name: projectFormName.trim(), date: projectFormDate, color: projectFormColor, updatedAt: now }
+      if (i !== -1) all[i] = { ...all[i], name: projectFormName.trim(), date: projectFormDate, dateEnd: projectFormDateEnd, color: projectFormColor, updatedAt: now }
     } else {
-      all.push({ id: `proj-${Date.now()}`, name: projectFormName.trim(), date: projectFormDate, color: projectFormColor, orders: [], createdAt: now, updatedAt: now })
+      all.push({ id: `proj-${Date.now()}`, name: projectFormName.trim(), date: projectFormDate, dateEnd: projectFormDateEnd, color: projectFormColor, orders: [], createdAt: now, updatedAt: now })
     }
     saveProjects(all); refresh(); syncActiveProject(); setShowProjectForm(false); setEditingProject(null)
   }
@@ -319,7 +320,7 @@ function App() {
                         <div className="project-card-body">
                           <div className="project-card-name">{project.name}</div>
                           <div className="project-card-meta-row">
-                            <span>📅 {project.date}</span>
+                            {project.dateEnd ? (<span>📅 {project.date} ~ {project.dateEnd}</span>) : (<span>📅 {project.date}</span>)}
                             <span className="project-card-stat">{orderCount} 单</span>
                             <span className="project-card-income">¥{income.toLocaleString()}</span>
                             {unfinished > 0 && <span className="project-card-unfinished">{unfinished} 未完成</span>}
@@ -363,7 +364,7 @@ function App() {
         <section className="project-page">
           <div className="section-header">
             <button className="btn secondary" onClick={handleBackHome}>← 返回</button>
-            <div style={{ flex: 1 }}><div className="section-label">{activeProject.name}</div><div className="section-date">📅 {activeProject.date}</div></div>
+            <div style={{ flex: 1 }}><div className="section-label">{activeProject.name}</div><div className="section-date">📅 {activeProject.date}{activeProject.dateEnd ? ` ~ ${activeProject.dateEnd}` : ''}</div></div>
             <button className="btn primary" onClick={openNewOrderForm}>+ 新建订单</button>
           </div>
 
@@ -461,7 +462,28 @@ function App() {
             <div className="modal-header"><div className="modal-title">{editingProject ? '编辑项目' : '新建项目'}</div><button className="icon-btn" onClick={() => setShowProjectForm(false)}>×</button></div>
             <div className="modal-body">
               <div className="form-group"><label>漫展名称 *</label><input type="text" placeholder="如：CP30 魔都同人祭" value={projectFormName} onChange={e => setProjectFormName(e.target.value)} autoFocus /></div>
-              <div className="form-group"><label>漫展日期 *</label><input type="date" value={projectFormDate} onChange={e => setProjectFormDate(e.target.value)} /></div>
+              <div className="form-group"><label>漫展日期 *</label>
+                <div className="of-row">
+                  <div className="of-field of-flex-1">
+                    <select className="of-input" value={projectFormDate ? projectFormDate.slice(0, 4) : ''} onChange={e => {
+                      const y = e.target.value
+                      const rest = projectFormDate ? projectFormDate.slice(4) : ''
+                      setProjectFormDate(y ? y + rest : rest)
+                    }}>
+                      <option value="">选择年份</option>
+                      {['2025','2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}年</option>)}
+                    </select>
+                  </div>
+                  <div className="of-field of-flex-1">
+                    <input type="date" placeholder="开始日期" value={projectFormDate} onChange={e => setProjectFormDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className="of-row" style={{ marginTop: 10 }}>
+                  <div className="of-field of-flex-1">
+                    <input type="date" placeholder="结束日期（选填）" value={projectFormDateEnd} onChange={e => setProjectFormDateEnd(e.target.value)} />
+                  </div>
+                </div>
+              </div>
               <div className="form-group"><label>卡片颜色</label>
                 <div className="color-picker">
                   {PROJECT_COLORS.map(c => (

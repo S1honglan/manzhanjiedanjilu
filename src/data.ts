@@ -23,6 +23,7 @@ export const initialProjects: ExpoProject[] = [
     id: 'proj-1',
     name: 'CP30 魔都同人祭',
     date: '2026-07-15',
+    dateEnd: '2026-07-16',
     color: '#ffffff',
     orders: [
       makeOrder({ id: 'order-1', projectId: 'proj-1', character: '2B（尼尔：自动人形）', customerName: '月色', photoCount: 120, deposit: 400, totalIncome: 880, status: '交付', note: '高清数字版 + 精修 10 张' }),
@@ -36,6 +37,7 @@ export const initialProjects: ExpoProject[] = [
     id: 'proj-2',
     name: '萤火虫动漫嘉年华',
     date: '2026-08-20',
+    dateEnd: '',
     color: '#e8f2fc',
     orders: [
       makeOrder({ id: 'order-4', projectId: 'proj-2', character: '雷电将军（原神）', customerName: '晚风', photoCount: 60, deposit: 200, totalIncome: 500, status: '预付定金', note: '' })

@@ -45,7 +45,8 @@ export function getDarkCardBg(lightColor: string): string {
 export interface ExpoProject {
   id: string
   name: string             // 漫展名称
-  date: string             // 漫展日期（YYYY-MM-DD）
+  date: string             // 漫展开始日期（YYYY-MM-DD）
+  dateEnd: string          // 漫展结束日期（YYYY-MM-DD）
   color: string            // 卡片背景色（hex）
   orders: ClientOrder[]    // 该项目下的客户订单
   createdAt: string
