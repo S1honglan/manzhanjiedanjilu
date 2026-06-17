@@ -470,6 +470,17 @@ html.dark .order-card-交付:hover     { box-shadow: 0 4px 16px rgba(0,0,0,0.50)
   box-shadow: 0 0 0 3px rgba(156,195,223,0.2);
 }
 
+/* 拖拽幽灵元素 */
+.drag-ghost {
+  font-family: inherit;
+  user-select: none;
+}
+/* 拖拽悬停目标高亮 */
+.order-card.drag-over {
+  outline: 3px dashed var(--color-primary-deep) !important;
+  outline-offset: -3px;
+}
+
 /* ===== 新版订单表单样式 ===== */
 .order-form-body { padding: 10px 20px 20px !important; }
 
