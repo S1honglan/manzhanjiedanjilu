@@ -95,6 +95,45 @@ function App() {
   const [showStatusPopover, setShowStatusPopover] = useState(false)
   const statusBtnRef = useRef<HTMLButtonElement | null>(null)
 
+  // ---- 拖拽排序 ----
+  const dragOrderRef = useRef<string | null>(null)
+  const dragOverOrderRef = useRef<string | null>(null)
+  const handleDragStart = useCallback((e: React.DragEvent, orderId: string) => {
+    dragOrderRef.current = orderId
+    const el = e.currentTarget as HTMLElement
+    el.style.opacity = '0.5'
+    e.dataTransfer.effectAllowed = 'move'
+  }, [])
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).style.opacity = '1'
+    dragOrderRef.current = null
+    dragOverOrderRef.current = null
+  }, [])
+  const handleDragOver = useCallback((e: React.DragEvent, orderId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    dragOverOrderRef.current = orderId
+  }, [])
+  const handleDrop = useCallback((e: React.DragEvent, targetOrderId: string) => {
+    e.preventDefault()
+    const srcId = dragOrderRef.current
+    if (!srcId || srcId === targetOrderId || !activeProject) return
+    const all = loadProjects()
+    const pi = all.findIndex(p => p.id === activeProject.id)
+    if (pi === -1) return
+    const orders = [...all[pi].orders]
+    const srcIdx = orders.findIndex(o => o.id === srcId)
+    const tgtIdx = orders.findIndex(o => o.id === targetOrderId)
+    if (srcIdx === -1 || tgtIdx === -1) return
+    const [moved] = orders.splice(srcIdx, 1)
+    orders.splice(tgtIdx, 0, moved)
+    all[pi].orders = orders
+    all[pi].updatedAt = new Date().toISOString()
+    saveProjects(all); refresh(); syncActiveProject()
+    dragOrderRef.current = null
+    dragOverOrderRef.current = null
+  }, [activeProject])
+
   // ---- 排序后的项目列表 ----
   const sortedProjects = useMemo(() => {
     const list = projects.map(p => ({ ...p, orderCount: p.orders.length, income: p.orders.reduce((s, o) => s + o.totalIncome, 0), unfinished: p.orders.filter(o => o.status !== '交付').length }))
@@ -415,7 +454,15 @@ function App() {
             <div className="order-grid">
               {getFilteredOrders().map(order => {
                 return (
-                  <div key={order.id} className={`order-card order-card-${order.status}`}>
+                  <div
+                    key={order.id}
+                    className={`order-card order-card-${order.status}`}
+                    draggable
+                    onDragStart={e => handleDragStart(e, order.id)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={e => handleDragOver(e, order.id)}
+                    onDrop={e => handleDrop(e, order.id)}
+                  >
                     <div className="order-card-row">
                       <div className="order-character" onClick={() => openEditOrderForm(order)}>{order.character}</div>
                       <select
@@ -622,26 +669,49 @@ function App() {
                 </div>
               )}
 
-              {/* ===== 5. 开始时间 | 结束时间 ===== */}
+              {/* ===== 5. 开始时间 | 结束时间 — 月日下拉 ===== */}
               <div className="of-row">
-                <div className="of-field of-flex-1">
-                  <label className="of-label">开始时间</label>
-                  <input
-                    className="of-input"
-                    type="time"
-                    value={orderForm.timeStart}
-                    onChange={e => setOrderForm({ ...orderForm, timeStart: e.target.value })}
-                  />
-                </div>
-                <div className="of-field of-flex-1">
-                  <label className="of-label">结束时间 <span className="of-optional">(选填)</span></label>
-                  <input
-                    className="of-input"
-                    type="time"
-                    value={orderForm.timeEnd}
-                    onChange={e => setOrderForm({ ...orderForm, timeEnd: e.target.value })}
-                  />
-                </div>
+                {(() => {
+                  const pad = (n: number) => String(n).padStart(2, '0')
+                  const months = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'))
+                  const days = Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'))
+                  const parseTime = (t: string) => {
+                    const m = t.match(/^(\d{2}):(\d{2})$/)
+                    return m ? { h: m[1], min: m[2] } : { h: '09', min: '00' }
+                  }
+                  const { h: sh, min: smin } = parseTime(orderForm.timeStart)
+                  const { h: eh, min: emin } = parseTime(orderForm.timeEnd)
+                  const hours = Array.from({length:24},(_,i)=>pad(i))
+                  const minutes = Array.from({length:12},(_,i)=>pad(i*5))
+                  const setStart = (field: string, val: string) => {
+                    const cur = parseTime(orderForm.timeStart)
+                    const next = { ...cur, [field]: val }
+                    setOrderForm({ ...orderForm, timeStart: `${next.h}:${next.min}` })
+                  }
+                  const setEnd = (field: string, val: string) => {
+                    const cur = parseTime(orderForm.timeEnd)
+                    const next = { ...cur, [field]: val }
+                    setOrderForm({ ...orderForm, timeEnd: `${next.h}:${next.min}` })
+                  }
+                  return (
+                    <>
+                      <div className="of-field of-flex-1">
+                        <label className="of-label">开始时间</label>
+                        <div className="of-date-picker">
+                          <div className="of-date-col"><span className="of-date-col-hint">时</span><select className="of-date-select" value={sh} onChange={e => setStart('h', e.target.value)}>{hours.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                          <div className="of-date-col"><span className="of-date-col-hint">分</span><select className="of-date-select" value={smin} onChange={e => setStart('min', e.target.value)}>{minutes.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                        </div>
+                      </div>
+                      <div className="of-field of-flex-1">
+                        <label className="of-label">结束时间 <span className="of-optional">(选填)</span></label>
+                        <div className="of-date-picker">
+                          <div className="of-date-col"><span className="of-date-col-hint">时</span><select className="of-date-select" value={eh} onChange={e => setEnd('h', e.target.value)}>{hours.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                          <div className="of-date-col"><span className="of-date-col-hint">分</span><select className="of-date-select" value={emin} onChange={e => setEnd('min', e.target.value)}>{minutes.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
 
               {/* ===== 6. 订单状态 — 分段按钮组 ===== */}
