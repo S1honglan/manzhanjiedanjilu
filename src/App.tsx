@@ -86,9 +86,6 @@ function App() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | '全部'>('全部')
   const [showUnfinishedOnly, setShowUnfinishedOnly] = useState(false)
 
-  // 卡片状态展开
-  const [expandStatusId, setExpandStatusId] = useState<string | null>(null)
-
   const [sortBy, setSortBy] = useState<string>('default')
 
   // ---- 手机端 UI 状态 ----
@@ -222,7 +219,7 @@ function App() {
     if (!activeProject) return
     const all = loadProjects(); const i = all.findIndex(p => p.id === activeProject.id); if (i === -1) return
     all[i].orders = all[i].orders.map(o => o.id === orderId ? { ...o, status: newStatus, updatedAt: new Date().toISOString() } : o)
-    all[i].updatedAt = new Date().toISOString(); saveProjects(all); refresh(); syncActiveProject(); setExpandStatusId(null)
+    all[i].updatedAt = new Date().toISOString(); saveProjects(all); refresh(); syncActiveProject()
   }
 
   // ============ 渲染 ============
@@ -417,12 +414,23 @@ function App() {
           {getFilteredOrders().length === 0 ? (<div className="empty-hint">{localSearch || statusFilter !== '全部' ? '没有匹配的订单' : '暂无订单，点击「+ 新建订单」添加'}</div>) : (
             <div className="order-grid">
               {getFilteredOrders().map(order => {
-                const isExpanded = expandStatusId === order.id
                 return (
-                  <div key={order.id} className={`order-card ${isExpanded ? 'order-card-expanded' : ''}`}>
+                  <div key={order.id} className={`order-card order-card-${order.status}`}>
                     <div className="order-card-row">
                       <div className="order-character" onClick={() => openEditOrderForm(order)}>{order.character}</div>
-                      <div className={`status-tag status-${order.status}`} onClick={() => setExpandStatusId(isExpanded ? null : order.id)}>{order.status} {isExpanded ? '▲' : '▼'}</div>
+                      <select
+                        className={`order-status-select status-${order.status}`}
+                        value={order.status}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => {
+                          e.stopPropagation()
+                          handleCardStatusChange(order.id, e.target.value as OrderStatus)
+                        }}
+                      >
+                        <option value="预付定金">预付定金</option>
+                        <option value="工作中">工作中</option>
+                        <option value="交付">交付</option>
+                      </select>
                     </div>
                     <div className="order-card-meta" onClick={() => openEditOrderForm(order)}>
                       {order.customerName && <span>👤 {order.customerName}</span>}
@@ -431,16 +439,6 @@ function App() {
                       {order.deposit > 0 && <span>定 ¥{order.deposit}</span>}<span>收 ¥{order.totalIncome}</span>
                     </div>
                     {order.note && <div className="order-note" onClick={() => openEditOrderForm(order)}>{order.note}</div>}
-                    {isExpanded && (
-                      <div className="status-expand">
-                        <div className="status-expand-label">更改状态：</div>
-                        <div className="status-expand-options">
-                          {(['预付定金', '工作中', '交付'] as OrderStatus[]).map(s => (
-                            <div key={s} className={`status-choice ${order.status === s ? 'status-choice-active' : ''}`} onClick={() => handleCardStatusChange(order.id, s)}>{s}</div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     <div className="order-card-footer">
                       <button className="btn btn-sm btn-secondary" onClick={() => openEditOrderForm(order)}>编辑</button>
                       <button className="btn btn-sm btn-secondary" style={{ marginLeft: 6 }} onClick={e => { e.stopPropagation(); setDeleteOrderTarget(order) }}>删除</button>
@@ -463,26 +461,38 @@ function App() {
             <div className="modal-body">
               <div className="form-group"><label>漫展名称 *</label><input type="text" placeholder="如：CP30 魔都同人祭" value={projectFormName} onChange={e => setProjectFormName(e.target.value)} autoFocus /></div>
               <div className="form-group"><label>漫展日期 *</label>
-                <div className="of-row">
-                  <div className="of-field of-flex-1">
-                    <select className="of-input" value={projectFormDate ? projectFormDate.slice(0, 4) : ''} onChange={e => {
-                      const y = e.target.value
-                      const rest = projectFormDate ? projectFormDate.slice(4) : ''
-                      setProjectFormDate(y ? y + rest : rest)
-                    }}>
-                      <option value="">选择年份</option>
-                      {['2025','2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}年</option>)}
-                    </select>
-                  </div>
-                  <div className="of-field of-flex-1">
-                    <input type="date" placeholder="开始日期" value={projectFormDate} onChange={e => setProjectFormDate(e.target.value)} />
-                  </div>
-                </div>
-                <div className="of-row" style={{ marginTop: 10 }}>
-                  <div className="of-field of-flex-1">
-                    <input type="date" placeholder="结束日期（选填）" value={projectFormDateEnd} onChange={e => setProjectFormDateEnd(e.target.value)} />
-                  </div>
-                </div>
+                {(() => {
+                  const pad = (n: number) => String(n).padStart(2, '0')
+                  const dateParts = projectFormDate ? projectFormDate.split('-') : []
+                  const [y, m, d] = dateParts.length === 3 ? dateParts : ['', '', '']
+                  const endParts = projectFormDateEnd ? projectFormDateEnd.split('-') : []
+                  const [ey, em, ed] = endParts.length === 3 ? endParts : ['', '', '']
+                  const setY = (v: string) => setProjectFormDate(v ? `${v}-${m || '01'}-${d || '01'}` : `-${m}-${d}`)
+                  const setM = (v: string) => setProjectFormDate(`${y || '2026'}-${pad(Number(v))}-${d || '01'}`)
+                  const setD = (v: string) => setProjectFormDate(`${y || '2026'}-${m || '01'}-${pad(Number(v))}`)
+                  const setEY = (v: string) => setProjectFormDateEnd(v ? `${v}-${em || '01'}-${ed || '01'}` : `-${em}-${ed}`)
+                  const setEM = (v: string) => setProjectFormDateEnd(`${ey || y || '2026'}-${pad(Number(v))}-${ed || '01'}`)
+                  const setED = (v: string) => setProjectFormDateEnd(`${ey || y || '2026'}-${em || '01'}-${pad(Number(v))}`)
+                  const years = ['2025','2026','2027','2028','2029','2030']
+                  const months = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'))
+                  const days = Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'))
+                  return (
+                    <>
+                      <div className="of-date-label">开始日期</div>
+                      <div className="of-date-picker">
+                        <div className="of-date-col"><span className="of-date-col-hint">年</span><select className="of-date-select" value={y} onChange={e => setY(e.target.value)}>{years.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                        <div className="of-date-col"><span className="of-date-col-hint">月</span><select className="of-date-select" value={m} onChange={e => setM(e.target.value)}>{months.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                        <div className="of-date-col"><span className="of-date-col-hint">日</span><select className="of-date-select" value={d} onChange={e => setD(e.target.value)}>{days.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                      </div>
+                      <div className="of-date-label" style={{ marginTop: 14 }}>结束日期 <span className="of-optional">(选填)</span></div>
+                      <div className="of-date-picker">
+                        <div className="of-date-col"><span className="of-date-col-hint">年</span><select className="of-date-select" value={ey} onChange={e => setEY(e.target.value)}><option value="">---</option>{years.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                        <div className="of-date-col"><span className="of-date-col-hint">月</span><select className="of-date-select" value={em} onChange={e => setEM(e.target.value)}>{months.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                        <div className="of-date-col"><span className="of-date-col-hint">日</span><select className="of-date-select" value={ed} onChange={e => setED(e.target.value)}>{days.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
               <div className="form-group"><label>卡片颜色</label>
                 <div className="color-picker">
