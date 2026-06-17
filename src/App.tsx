@@ -96,43 +96,127 @@ function App() {
   const statusBtnRef = useRef<HTMLButtonElement | null>(null)
 
   // ---- 拖拽排序 ----
-  const dragOrderRef = useRef<string | null>(null)
-  const dragOverOrderRef = useRef<string | null>(null)
-  const handleDragStart = useCallback((e: React.DragEvent, orderId: string) => {
-    dragOrderRef.current = orderId
+  const dragOrderId = useRef<string | null>(null)
+  const dragGhost = useRef<HTMLDivElement | null>(null)
+  const dragSrcIdx = useRef(-1)
+  const draggedEl = useRef<HTMLElement | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isDragging = useRef(false)
+
+  function clearDragState() {
+    if (draggedEl.current) {
+      draggedEl.current.style.opacity = '1'
+      draggedEl.current = null
+    }
+    if (dragGhost.current) {
+      dragGhost.current.remove()
+      dragGhost.current = null
+    }
+    dragOrderId.current = null
+    dragSrcIdx.current = -1
+    isDragging.current = false
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+  }
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    // 双击取消灰色状态
+    if (draggedEl.current) {
+      draggedEl.current.style.opacity = '1'
+      draggedEl.current = null
+    }
+  }, [])
+
+  const orderTouchStart = useCallback((e: React.TouchEvent, orderId: string, index: number) => {
     const el = e.currentTarget as HTMLElement
-    el.style.opacity = '0.5'
-    e.dataTransfer.effectAllowed = 'move'
+    // 长按 500ms 开始拖拽
+    longPressTimer.current = setTimeout(() => {
+      isDragging.current = true
+      dragOrderId.current = orderId
+      dragSrcIdx.current = index
+      draggedEl.current = el
+
+      el.style.opacity = '0.4'
+      el.style.transition = 'opacity 0.15s'
+
+      // 创建跟随手指的幽灵元素
+      const rect = el.getBoundingClientRect()
+      const ghost = document.createElement('div')
+      ghost.className = 'drag-ghost'
+      ghost.style.cssText = `
+        position:fixed; z-index:9999; pointer-events:none;
+        width:${rect.width}px; height:${rect.height}px;
+        background:${getComputedStyle(el).background};
+        border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.3);
+        transform:translate(-50%,-50%) scale(1.05);
+        opacity:0.9;
+        left:${e.touches[0].clientX}px; top:${e.touches[0].clientY}px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:16px; font-weight:700; color:#2c3238; padding:12px;
+      `
+      ghost.textContent = el.querySelector('.order-character')?.textContent || ''
+      document.body.appendChild(ghost)
+      dragGhost.current = ghost
+    }, 500)
   }, [])
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
-    (e.currentTarget as HTMLElement).style.opacity = '1'
-    dragOrderRef.current = null
-    dragOverOrderRef.current = null
-  }, [])
-  const handleDragOver = useCallback((e: React.DragEvent, orderId: string) => {
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current) {
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+      return
+    }
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    dragOverOrderRef.current = orderId
+    const touch = e.touches[0]
+    if (dragGhost.current) {
+      dragGhost.current.style.left = touch.clientX + 'px'
+      dragGhost.current.style.top = touch.clientY + 'px'
+    }
+    // 检测悬停位置，高亮目标卡片
+    const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null
+    const card = target?.closest('.order-card') as HTMLElement | null
+    if (card && card !== draggedEl.current) {
+      document.querySelectorAll('.order-card.drag-over').forEach(c => c.classList.remove('drag-over'))
+      card.classList.add('drag-over')
+    } else if (!card) {
+      document.querySelectorAll('.order-card.drag-over').forEach(c => c.classList.remove('drag-over'))
+    }
   }, [])
-  const handleDrop = useCallback((e: React.DragEvent, targetOrderId: string) => {
+
+  const orderTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+
+    if (!isDragging.current) return
     e.preventDefault()
-    const srcId = dragOrderRef.current
-    if (!srcId || srcId === targetOrderId || !activeProject) return
-    const all = loadProjects()
-    const pi = all.findIndex(p => p.id === activeProject.id)
-    if (pi === -1) return
-    const orders = [...all[pi].orders]
-    const srcIdx = orders.findIndex(o => o.id === srcId)
-    const tgtIdx = orders.findIndex(o => o.id === targetOrderId)
-    if (srcIdx === -1 || tgtIdx === -1) return
-    const [moved] = orders.splice(srcIdx, 1)
-    orders.splice(tgtIdx, 0, moved)
-    all[pi].orders = orders
-    all[pi].updatedAt = new Date().toISOString()
-    saveProjects(all); refresh(); syncActiveProject()
-    dragOrderRef.current = null
-    dragOverOrderRef.current = null
+
+    document.querySelectorAll('.order-card.drag-over').forEach(c => c.classList.remove('drag-over'))
+
+    const touch = e.changedTouches[0]
+    const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null
+    const targetCard = target?.closest('.order-card') as HTMLElement | null
+    const tgtId = targetCard?.getAttribute('data-order-id')
+
+    if (tgtId && dragOrderId.current && tgtId !== dragOrderId.current && activeProject) {
+      const all = loadProjects()
+      const pi = all.findIndex(p => p.id === activeProject.id)
+      if (pi !== -1) {
+        const orders = [...all[pi].orders]
+        const srcIdx = orders.findIndex(o => o.id === dragOrderId.current)
+        const tgtIdx = orders.findIndex(o => o.id === tgtId)
+        if (srcIdx !== -1 && tgtIdx !== -1) {
+          const [moved] = orders.splice(srcIdx, 1)
+          orders.splice(tgtIdx, 0, moved)
+          all[pi].orders = orders
+          all[pi].updatedAt = new Date().toISOString()
+          saveProjects(all); refresh(); syncActiveProject()
+        }
+      }
+    }
+    clearDragState()
   }, [activeProject])
+
+  const handleTouchCancel = useCallback(() => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+    clearDragState()
+  }, [])
 
   // ---- 排序后的项目列表 ----
   const sortedProjects = useMemo(() => {
@@ -159,9 +243,6 @@ function App() {
     }
     return res.sort((a, b) => b.order.createdAt.localeCompare(a.order.createdAt))
   }, [projects, showUnfinishedOnly])
-
-  // 滑动返回
-  const touchStartX = useRef(0)
 
   // 初始化
   useEffect(() => {
@@ -205,9 +286,10 @@ function App() {
   function enterProject(projectId: string) { const f = loadProjects().find(p => p.id === projectId); setActiveProject(f || null); setShowUnfinishedOnly(false) }
 
   // 滑动返回
-  const handleTouchStart = useCallback((e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }, [])
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.changedTouches[0].clientX - touchStartX.current > 80 && touchStartX.current < 40 && activeProject) handleBackHome()
+  const swipeTouchX = useRef(0)
+  const swipeStart = useCallback((e: React.TouchEvent) => { swipeTouchX.current = e.touches[0].clientX }, [])
+  const swipeEnd = useCallback((e: React.TouchEvent) => {
+    if (e.changedTouches[0].clientX - swipeTouchX.current > 80 && swipeTouchX.current < 40 && activeProject) handleBackHome()
   }, [activeProject])
 
   // ============ 项目 CRUD ============
@@ -264,7 +346,7 @@ function App() {
   // ============ 渲染 ============
 
   return (
-    <div className="app-shell" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="app-shell" onTouchStart={swipeStart} onTouchEnd={swipeEnd}>
       <header className="topbar">
         <div className="brand">漫展接单记录</div>
         <button className="dark-toggle" onClick={() => setDarkMode(!darkMode)} title={darkMode ? '切换亮色' : '切换暗色'}>
@@ -452,16 +534,18 @@ function App() {
 
           {getFilteredOrders().length === 0 ? (<div className="empty-hint">{localSearch || statusFilter !== '全部' ? '没有匹配的订单' : '暂无订单，点击「+ 新建订单」添加'}</div>) : (
             <div className="order-grid">
-              {getFilteredOrders().map(order => {
+              {getFilteredOrders().map((order, idx) => {
                 return (
                   <div
                     key={order.id}
+                    data-order-id={order.id}
                     className={`order-card order-card-${order.status}`}
                     draggable
-                    onDragStart={e => handleDragStart(e, order.id)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={e => handleDragOver(e, order.id)}
-                    onDrop={e => handleDrop(e, order.id)}
+                    onTouchStart={e => orderTouchStart(e, order.id, idx)}
+                    onTouchEnd={orderTouchEnd}
+                    onTouchMove={handleTouchMove}
+                    onTouchCancel={handleTouchCancel}
+                    onDoubleClick={handleDoubleClick}
                   >
                     <div className="order-card-row">
                       <div className="order-character" onClick={() => openEditOrderForm(order)}>{order.character}</div>
